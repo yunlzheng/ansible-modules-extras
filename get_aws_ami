@@ -1,0 +1,48 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+import boto.ec2
+from ansible.module_utils.basic import *
+
+
+def main():
+    module = AnsibleModule(
+        argument_spec=dict(
+            region=dict(required=True, aliases=['region_name'])
+        )
+    )
+
+    region = module.params['region']
+
+    conn = boto.ec2.connect_to_region(region)
+
+    images = conn.get_all_images(filters={
+        'name': "amzn-ami-pv-*",
+        'root-device-type': 'ebs',
+        'architecture': 'x86_64',
+        'owner-alias': 'amazon',
+        'virtualization-type': 'paravirtual',
+        'state': 'available'
+    })
+
+    images.sort(key=lambda x: x.name, reverse=True)
+    if images.__len__() > 0:
+        image = images.pop(0)
+
+        print json.dumps({
+            "id": image.id,
+            "name": image.name,
+            "description": image.description,
+            "region": image.region.name
+        })
+    else:
+        print json.dumps({
+            "failed": True,
+            "msg": "image not found"
+        })
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
+
